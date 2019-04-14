@@ -4,7 +4,19 @@ package net.jcip.examples;
  * NonreentrantDeadlock
  * <p/>
  * Code that would deadlock if intrinsic locks were not reentrant
- * ★★★★★★★没有发生deadlock啊...现在intrinsic lock都是reentrant的了？？？★★★★★★★
+ *
+ * Reentrancy facilitates encapsulation of locking behavior, and thus
+ *            simplifies the development of object-oriented concurrent code.
+ * Without reentrant locks,
+ * the very natural-looking code in Listing 2.7 ,
+ * in which a subclass overrides a synchronized method and then calls the superclass method,
+ * would deadlock.
+ * Because the doSomething methods in Widget and LoggingWidget are both synchronized,
+ *         each tries to acquire the lock on the Widget before proceeding.
+ * But if intrinsic locks were not reentrant,
+ *     the call to super.doSomething would never be able to acquire the lock because it would be considered already held, and
+ *     the thread would permanently stall waiting for a lock it can never acquire.
+ * Reentrancy saves us from deadlock in situations like this.
  *
  * @author Brian Goetz and Tim Peierls
  */

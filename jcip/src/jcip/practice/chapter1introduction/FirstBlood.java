@@ -1,4 +1,4 @@
-package jcip.practice.chapter1;
+package jcip.practice.chapter1introduction;
 
 import net.jcip.examples.Sequence;
 import net.jcip.examples.UnsafeSequence;
