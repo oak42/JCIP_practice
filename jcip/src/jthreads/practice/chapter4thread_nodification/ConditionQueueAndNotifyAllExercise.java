@@ -1,15 +1,14 @@
 package jthreads.practice.chapter4thread_nodification;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Threads can use the wait and notify mechanism discussed in Chapter 4
- * to achieve the functionality of thread suspension and resumption.
- * The difference is that the threads must be coded to use that technique
- * (rather than a generic suspend/resume mechanism that could be imposed from other threads).
+ * what happens to the condition queue when notifyAll is called
  */
-public class WaitAndNotifyMechanismExercise {
+public class ConditionQueueAndNotifyAllExercise {
     static class BoundedTaskFIFO {
         private int capacity;
         private LinkedList<Object> taskFIFO;
@@ -24,19 +23,21 @@ public class WaitAndNotifyMechanismExercise {
             while (isEmpty()) {// attn - wait should always be used in a loop ...
                 printlnToStdOut("fifo is empty, WAIT to consume");
                 wait();
+                printlnToStdOut("get notified and(!) now is back to life (lock acquired)...");
             }
             Object task = taskFIFO.pollFirst();
-            notifyAll();
+//            notifyAll(); attn !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             return task;
         }
 
-        protected synchronized final void doPut(Object task) throws InterruptedException {
+        protected synchronized final void doPut(List<Object> task) throws InterruptedException {
             printlnToStdOut("try to produce a task...");
-            while (isFull()) {// attn - wait should always be used in a loop ...
+            while (isFull()) {//  attn - wait should always be used in a loop ...
                 printlnToStdOut("fifo is full, WAIT to produce");
                 wait();
+                printlnToStdOut("get notified and(!) now is back to life (lock acquired)...");
             }
-            taskFIFO.offerLast(task);
+            taskFIFO.addAll(task);
             notifyAll();
         }
 
@@ -75,26 +76,34 @@ public class WaitAndNotifyMechanismExercise {
 
     static class TaskProducer implements Runnable {
         BoundedTaskFIFO fifo;
+        boolean infinity;
         float produceInterval;
+        int productionSpeed;
         static AtomicInteger taskId = new AtomicInteger(0);
 
-        public TaskProducer(BoundedTaskFIFO fifo, float produceInterval) {
+        public TaskProducer(BoundedTaskFIFO fifo, boolean infinity, float produceInterval, int productionSpeed) {
             this.fifo = fifo;
+            this.infinity = infinity;
             this.produceInterval = produceInterval;
+            this.productionSpeed = productionSpeed;
         }
 
         @Override
         public void run() {
-            while (true) {
+            do {
                 try {
-                    int task = taskId.addAndGet(1);
-                    fifo.doPut(task);
-                    printlnToStdOut("produced task" + task);
+                    int taskIdBase = taskId.getAndAdd(productionSpeed); // bulk apply task id
+                    List<Object> taskList = new ArrayList<>(productionSpeed);
+                    for (int i = 1; i <= productionSpeed; i++) {
+                        taskList.add(taskIdBase + i);
+                    }
+                    fifo.doPut(taskList);
+                    printlnToStdOut("produced task" + taskList + "");
                     Thread.sleep((int) (1000 * produceInterval));
                 } catch (InterruptedException ex) {
                 }
 
-            }
+            } while (infinity);
         }
     }
 
@@ -109,8 +118,9 @@ public class WaitAndNotifyMechanismExercise {
     public static void main(String[] args) {
         BoundedTaskFIFO fifo = new BoundedTaskFIFO(7);
         for (int i = 0; i < 5; i++) {
-            new Thread(new TaskProducer(fifo, .3f), "producer" + i).start();
             new Thread(new TaskConsumer(fifo, .2f), "consumer" + i).start();
         }
+
+        new Thread(new TaskProducer(fifo, false, .3f, 5), "producer" + " singleton").start();
     }
 }
